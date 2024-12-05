@@ -1,0 +1,166 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapplication-1
+  namespace: demo-webapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp-service
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: webapp-service
+        version: V1
+    spec:
+      containers:
+      - name: php-fpm
+        image: mohitverma1688/php-app:V1
+        ports:
+        - containerPort: 9000
+          name: http
+          protocol: TCP
+        imagePullPolicy: Always
+      - name: nginx
+        image: nginx:alpine
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - name: nginx-config-volume
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+      imagePullSecrets:
+        - name: dockercred
+      restartPolicy: Always
+      serviceAccountName: ""
+      volumes:
+        # - name: www-storage
+        # persistentVolumeClaim:
+        #  claimName: pv-www-claim
+      - name: nginx-config-volume
+        configMap:
+          name: nginx-config
+
+---
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nginx-config
+  namespace: demo-webapp
+data:
+  default.conf: |
+   server {
+    index index.php index.html;
+    server_name myapp.loc;
+    error_log /var/log/nginx/error.log;
+    access_log /var/log/nginx/access.log;
+    root /var/www/myapp;
+    index index.php index.html index.htm;
+
+    location / {
+        try_files $uri $uri/ /index.php$is_args$args;
+    }
+
+    location ~ \.php$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass localhost:9000;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+   }
+
+
+---
+
+apiVersion: v1
+data:
+  .dockerconfigjson: ""
+kind: Secret
+metadata:
+  name: dockercred
+  namespace: demo-webapp
+type: kubernetes.io/dockerconfigjson
+
+
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapplication-2
+  namespace: demo-webapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webapp-service
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: webapp-service
+        version: V2
+    spec:
+      containers:
+      - name: php-fpm
+        image: mohitverma1688/php-app:V2
+        ports:
+        - containerPort: 9000
+          name: http
+          protocol: TCP
+        imagePullPolicy: Always
+      - name: nginx
+        image: nginx:alpine
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - name: nginx-config-volume
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+      imagePullSecrets:
+        - name: dockercred
+      restartPolicy: Always
+      serviceAccountName: ""
+      volumes:
+      - name: nginx-config-volume
+        configMap:
+          name: nginx-config
+
+
+---
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: web
+  name: web
+  namespace: demo-webapp
+spec:
+  ports:
+  - name: web-port
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: webapp-service
+  type: ClusterIP
+status:
+  loadBalancer: {}
+
+

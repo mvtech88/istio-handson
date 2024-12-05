@@ -1,0 +1,57 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: ingress-gateway-configuration
+  namespace: demo-webapp
+spec:
+  selector:
+    istio: ingressgateway # use Istio default gateway implementation
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "myapp.loc"   # Domain name of the external website
+
+
+
+---
+
+
+
+kind: VirtualService
+apiVersion: networking.istio.io/v1
+metadata:
+  name: web-app-virtual-service
+  namespace: demo-webapp
+spec:
+  hosts:      # which incoming host are we applying the proxy rules to???
+    - "myapp.loc" # Copy the value in the gateway hosts - usually a Domain Name
+  gateways: 
+     - ingress-gateway-configuration
+  http:
+    - route:
+        - destination:
+            host: web.demo-webapp.svc.cluster.local
+            subset: version1
+          weight: 50
+        - destination:
+            host: web.demo-webapp.svc.cluster.local
+            subset: version2
+          weight: 50
+---
+kind: DestinationRule
+apiVersion: networking.istio.io/v1alpha3
+metadata:
+  name: webapp-destination-rule
+  namespace: demo-webapp
+spec:
+  host: web.demo-webapp.svc.cluster.local
+  subsets:
+    - labels:
+        version: V1
+      name: version1
+    - labels:
+        version: V2
+      name: version2

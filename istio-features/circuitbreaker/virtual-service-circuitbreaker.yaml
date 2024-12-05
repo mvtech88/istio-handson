@@ -1,0 +1,52 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: ingress-gateway-configuration
+  namespace: demo-webapp
+spec:
+  selector:
+    istio: ingressgateway # use Istio default gateway implementation
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "myapp.loc"   # Domain name of the external website
+
+---
+
+kind: VirtualService
+apiVersion: networking.istio.io/v1
+metadata:
+  name: web-app-virtual-service
+  namespace: demo-webapp
+spec:
+  hosts:      
+    - "myapp.loc" 
+  gateways: 
+     - ingress-gateway-configuration
+  http:
+    - route:
+        - destination:
+            host: web.demo-webapp.svc.cluster.local 
+            subset: web-service
+---
+kind: DestinationRule
+apiVersion: networking.istio.io/v1alpha3
+metadata:
+  name: webapp-destination-rule
+  namespace: demo-webapp
+spec:
+  host: web.demo-webapp.svc.cluster.local
+  trafficPolicy:
+    outlierDetection:
+      consecutive5xxErrors: 2
+      interval: 2s
+      baseEjectionTime: 3m
+      maxEjectionPercent: 100
+  subsets:
+    - labels:
+        app: webapp-service  # This label is applied on the service. 
+      name: web-service
+

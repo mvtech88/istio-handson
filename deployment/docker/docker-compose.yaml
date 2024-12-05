@@ -1,0 +1,37 @@
+version: "3.7"
+
+services:
+
+  web:
+    image: nginx:1.17
+    ports:
+      - 8080:80
+    volumes:
+      - /home/m6verma/istio-demo/app/php-image:/var/www/myapp/
+      - /home/m6verma/istio-demo/app/site.conf:/etc/nginx/conf.d/default.conf
+    links:
+      - php
+
+  php:
+    build: 
+      context: ./php-image-docker
+    volumes:
+      - /home/m6verma/istio-demo/app/php-image:/var/www/myapp
+    environment:
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+  mysql: 
+   image: mysql:5.7
+   container_name: mysql
+   ports:
+     - 3306:3306
+   links:
+     - php
+   environment:
+    MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    MYSQL_DATABASE: ${MYSQL_DATABASE}
+    MYSQL_USER: ${MYSQL_USER}
+    MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+   volumes:
+    - /home/m6verma/istio-demo/app/mysqldata:/var/lib/mysql
+    - ./init.sql:/docker-entrypoint-initdb.d/init.sql
